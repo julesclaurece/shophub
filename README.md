@@ -2,7 +2,8 @@
 
 A production-ready e-commerce web application built with React, Node.js, Express, PostgreSQL and Stripe.
 
-**Live Demo:** _coming soon_
+**Live Demo:** [shophub-snowy.vercel.app](https://shophub-snowy.vercel.app)  
+**API:** [shophub-production-69b2.up.railway.app](https://shophub-production-69b2.up.railway.app)
 
 ---
 
@@ -136,7 +137,7 @@ Copy the `whsec_...` secret into your server `.env`.
 
 ## Test Credentials
 
-**Admin account:** `test@test.com` / `password123`
+**Admin account:** `admin@shophub.com` / `admin123`
 
 **Stripe test card:** `4242 4242 4242 4242` — any future date, any CVC
 
