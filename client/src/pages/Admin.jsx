@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Package, ShoppingBag } from 'lucide-react';
+import { Plus, Pencil, Trash2, Package, ShoppingBag, Upload, X } from 'lucide-react';
 import api from '../lib/api';
 import useAuthStore from '../store/useAuthStore';
 import toast from 'react-hot-toast';
@@ -13,8 +13,12 @@ export default function Admin() {
   const [tab, setTab] = useState('products');
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [modal, setModal] = useState(null); // null | 'create' | product object
+  const [modal, setModal] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef();
 
   useEffect(() => {
     if (!user || user.role !== 'admin') navigate('/');
@@ -32,23 +36,42 @@ export default function Admin() {
     setOrders(data);
   };
 
-  const openCreate = () => { setForm(EMPTY); setModal('create'); };
-  const openEdit = (p) => { setForm({ ...p, price: String(p.price), stock: String(p.stock) }); setModal(p); };
+  const openCreate = () => { setForm(EMPTY); setImageFile(null); setImagePreview(null); setModal('create'); };
+  const openEdit = (p) => { setForm({ ...p, price: String(p.price), stock: String(p.stock) }); setImageFile(null); setImagePreview(p.image_url); setModal(p); };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
+    setUploading(true);
     try {
+      let image_url = form.image_url;
+      if (imageFile) {
+        const fd = new FormData();
+        fd.append('image', imageFile);
+        const { data } = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        image_url = data.url;
+      }
+      const payload = { ...form, image_url };
       if (modal === 'create') {
-        await api.post('/products', form);
+        await api.post('/products', payload);
         toast.success('Product created');
       } else {
-        await api.put(`/products/${modal.id}`, form);
+        await api.put(`/products/${modal.id}`, payload);
         toast.success('Product updated');
       }
       setModal(null);
       fetchProducts();
     } catch {
       toast.error('Failed to save product');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -179,18 +202,35 @@ export default function Admin() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
             <h2 className="text-xl font-bold text-gray-900 mb-6">{modal === 'create' ? 'Add Product' : 'Edit Product'}</h2>
             <form onSubmit={handleSave} className="space-y-4">
-              {[['name', 'Name', 'text'], ['image_url', 'Image URL', 'url']].map(([field, label, type]) => (
-                <div key={field}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                  <input
-                    type={type}
-                    required={field === 'name'}
-                    value={form[field]}
-                    onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-500"
-                  />
-                </div>
-              ))}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image <span className="text-gray-400 font-normal">(max 5MB)</span></label>
+                <input type="file" accept="image/*" ref={fileRef} onChange={handleImageChange} className="hidden" />
+                {imagePreview ? (
+                  <div className="relative w-full h-40 rounded-xl overflow-hidden border border-gray-200">
+                    <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => { setImageFile(null); setImagePreview(null); setForm({ ...form, image_url: '' }); fileRef.current.value = ''; }}
+                      className="absolute top-2 right-2 bg-white rounded-full p-1 shadow hover:bg-red-50">
+                      <X size={14} className="text-red-500" />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => fileRef.current.click()}
+                    className="w-full h-32 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-indigo-400 hover:text-indigo-500 transition-colors">
+                    <Upload size={24} />
+                    <span className="text-sm">Click to upload image</span>
+                  </button>
+                )}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
@@ -217,8 +257,8 @@ export default function Admin() {
                 <button type="button" onClick={() => setModal(null)} className="flex-1 border border-gray-300 py-2.5 rounded-xl text-gray-700 hover:bg-gray-50">
                   Cancel
                 </button>
-                <button type="submit" className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl hover:bg-indigo-700">
-                  Save
+                <button type="submit" disabled={uploading} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl hover:bg-indigo-700 disabled:opacity-60">
+                  {uploading ? 'Uploading...' : 'Save'}
                 </button>
               </div>
             </form>
