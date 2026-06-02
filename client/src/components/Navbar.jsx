@@ -49,7 +49,7 @@ export default function Navbar() {
               </button>
             </div>
           ) : (
-            <div className="relative" ref={ref}>
+            <div className="relative" ref={ref} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
               <button
                 onClick={() => setOpen(!open)}
                 className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 p-2"
