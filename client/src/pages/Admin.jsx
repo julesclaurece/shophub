@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Package, ShoppingBag, Upload, X } from 'lucide-react';
 import api from '../lib/api';
 import useAuthStore from '../store/useAuthStore';
@@ -10,7 +10,9 @@ const EMPTY = { name: '', description: '', price: '', image_url: '', category: '
 export default function Admin() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const [tab, setTab] = useState('products');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'products';
+  const setTab = (t) => setSearchParams({ tab: t });
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [modal, setModal] = useState(null);
